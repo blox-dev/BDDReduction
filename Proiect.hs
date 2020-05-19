@@ -147,29 +147,33 @@ leftAndRightNodes (Node _ Empty b)     = [b]
 leftAndRightNodes (Node _ a Empty)     = [a]
 leftAndRightNodes (Node _ a b)       = [a,b]
 
-input = "xy+xyz"
-copac = (buildTree ((varlen input)+1) (parseInput input))
-copacBF = traverseBF copac
+--input = "xy+xyz"
 
 --bfTree -> lista
 
-allNodes = 2 ^ ((varlen input) + 1)
-halfNodes = allNodes `div` 2
-quarterNodes = halfNodes `div` 2
-
 -- TODO: Nothing handling
 
-treeToList :: [String] -> Int -> Int -> [String]
-treeToList [] _ _ = []
-treeToList (hd:tl) varIndex index | index < halfNodes = if(index < (2^varIndex)) then [(vars input)!!(varIndex-1)]:(treeToList tl varIndex (index+1)) else [(vars input)!!(varIndex)]:(treeToList tl (varIndex+1) (index+1)) 
-                                  | index < allNodes = case parse_formula hd of
-                                                            Nothing -> "bruh":(treeToList tl varIndex (index+1))
+treeToList :: Int -> [String] -> String -> Int -> Int -> Maybe [String]
+treeToList _ [] _ _ _= Just []
+treeToList allNodes (hd:tl) vars varIndex index | index < (allNodes `div` 2) =  if(index < (2^varIndex)) then
+                                                                                    case (treeToList allNodes tl vars varIndex (index+1)) of
+                                                                                        Nothing -> Nothing
+                                                                                        Just tail -> Just ([vars!!(varIndex-1)]:tail) 
+                                                                                else case (treeToList allNodes tl vars (varIndex+1) (index+1)) of
+                                                                                        Nothing -> Nothing
+                                                                                        Just tail -> Just([vars!!(varIndex)]:tail)
+                                                | index < allNodes = case parse_formula hd of
+                                                            Nothing -> Nothing
                                                             Just b -> case b of
-                                                                True -> "1":(treeToList tl varIndex (index+1))
-                                                                False -> "0":(treeToList tl varIndex (index+1))
-                                  | True = []
+                                                                True -> case (treeToList allNodes tl vars varIndex (index+1)) of
+                                                                            Nothing -> Nothing
+                                                                            Just tail -> Just ("1":tail)
+                                                                False -> case (treeToList allNodes tl vars varIndex (index+1)) of
+                                                                            Nothing -> Nothing
+                                                                            Just tail -> Just ("0":tail)
+                                                | True = Just []
 
-ttl = treeToList copacBF 1 1
+--ttl = treeToList copacBF 1 1
 
 -- lista -> BDD
 
@@ -182,31 +186,29 @@ instance Show ListElement where
 l1= Element {index=1,value="bruh",leftIndex=3,rightIndex=4}
 
 
-listToBDD :: [String] -> Int -> [ListElement]
-listToBDD [] _ = []
-listToBDD (hd:tl) index | index < quarterNodes = (Element {index = index, value = hd, leftIndex = 2*index, rightIndex = 2*index + 1}):(listToBDD tl (index+1))
-                        | index < halfNodes = case ttl!!(2*index-1) of
-                                                "0" -> case ttl!!(2*index) of
-                                                            "0" -> (Element {index = index, value = hd, leftIndex = halfNodes, rightIndex = halfNodes}):(listToBDD tl (index+1))
-                                                            "1" -> (Element {index = index, value = hd, leftIndex = halfNodes, rightIndex = halfNodes +1}):(listToBDD tl (index+1))
-                                                "1" -> case ttl!!(2*index) of
-                                                            "0" -> (Element {index = index, value = hd, leftIndex = halfNodes +1, rightIndex = halfNodes}):(listToBDD tl (index+1))
-                                                            "1" -> (Element {index = index, value = hd, leftIndex = halfNodes +1, rightIndex = halfNodes +1}):(listToBDD tl (index+1))
-                        | True = (Element {index = index, value = "0", leftIndex = -1, rightIndex = -2}):(Element {index = index+1, value = "1", leftIndex = -3, rightIndex = -4}):[]
-
-bdd = listToBDD ttl 1
+listToBDD :: Int -> [String] -> [String] -> Int -> [ListElement]
+listToBDD _ _ [] _ = []
+listToBDD allNodes ttl (hd:tl) index | index < (allNodes `div` 4) = (Element {index = index, value = hd, leftIndex = 2*index, rightIndex = 2*index + 1}):(listToBDD allNodes ttl tl (index+1))
+                                     | index < (allNodes `div` 2) = case ttl!!(2*index-1) of
+                                                             "0" -> case ttl!!(2*index) of
+                                                                         "0" -> (Element {index = index, value = hd, leftIndex = (allNodes `div` 2), rightIndex = (allNodes `div` 2)}):(listToBDD allNodes ttl tl (index+1))
+                                                                         "1" -> (Element {index = index, value = hd, leftIndex = (allNodes `div` 2), rightIndex = (allNodes `div` 2) +1}):(listToBDD allNodes ttl tl (index+1))
+                                                             "1" -> case ttl!!(2*index) of
+                                                                         "0" -> (Element {index = index, value = hd, leftIndex = (allNodes `div` 2) +1, rightIndex = (allNodes `div` 2)}):(listToBDD allNodes ttl tl (index+1))
+                                                                         "1" -> (Element {index = index, value = hd, leftIndex = (allNodes `div` 2) +1, rightIndex = (allNodes `div` 2) +1}):(listToBDD allNodes ttl tl (index+1))
+                                     | True = (Element {index = index, value = "0", leftIndex = -1, rightIndex = -2}):(Element {index = index+1, value = "1", leftIndex = -3, rightIndex = -4}):[]
 
 --reguli eliminare
 
 redundantElem :: ListElement -> Bool
 redundantElem (Element{index = _, value = _, leftIndex = a, rightIndex = b}) = if(a == b) then True else False
 
-redundant n = redundantElem (bdd!!(n-1))
+--redundant n = redundantElem (bdd!!(n-1))
 
 sameTreeElem :: ListElement -> ListElement -> Bool
 sameTreeElem (Element{index = _, value = _, leftIndex = a, rightIndex = b}) (Element{index = _, value = _, leftIndex = c, rightIndex = d}) = if(a==c && b == d) then True else False
 
-sameTree m n = sameTreeElem (bdd!!(m-1)) (bdd!!(n-1)) 
+--sameTree m n = sameTreeElem (bdd!!(m-1)) (bdd!!(n-1)) 
 
 --main
 
@@ -218,3 +220,22 @@ sameTree m n = sameTreeElem (bdd!!(m-1)) (bdd!!(n-1))
 --                                putStrLn $ "Copacul este: " ++ (show bdd)
 --                                main
 --               _ -> do putStrLn "Eroare de sintaxa."
+
+
+main :: IO ()
+main = do putStrLn "Enter formula:"
+          formula <- getLine
+          let copc = (buildTree ((varlen formula)+1) (parseInput formula))
+          let allNodes = 2 ^ ((varlen formula) + 1)
+          case treeToList allNodes (traverseBF copc) (variabile formula) 1 1 of
+              Nothing -> do putStrLn "Invalid input"
+              Just ttl -> do print ttl
+                             let bdd = listToBDD allNodes ttl ttl 1
+                             print bdd
+
+        --   let loop = do putStrLn "Anything else?"
+        --                 answer <- getLine
+        --                 case answer of
+        --                     "yes" -> loop
+        --                     _ -> do let xd = "Goodbye." 
+        --                             putStrLn xd in loop
