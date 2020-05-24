@@ -203,7 +203,7 @@ redundantElem n list = let elem = (getElem n list) in (leftIndex elem) == (right
 sameTreeElem :: Int -> Int -> [ListElement] -> Bool
 sameTreeElem _ _ [] = False
 sameTreeElem n m list = let elem1 = (getElem n list)
-                            elem2 = (getElem m list) in if ((leftIndex elem1) == (leftIndex elem2) && (leftIndex elem1) == (leftIndex elem2)) then True else False
+                            elem2 = (getElem m list) in (leftIndex elem1) == (leftIndex elem2) && (leftIndex elem1) == (leftIndex elem2) && (value elem1) == (value elem2)
 
 replaceElemWith :: [ListElement] -> Int -> Int -> [ListElement]
 replaceElemWith [] _ _ = []
@@ -212,6 +212,21 @@ replaceElemWith (Element{index = a, value = b, leftIndex = c, rightIndex = d}:tl
                                                                                       | c == x && d /=x = (Element{index = a, value = b, leftIndex = y, rightIndex = d}):(replaceElemWith tl x y)
                                                                                       | c /= x && d ==x = (Element{index = a, value = b, leftIndex = c, rightIndex = y}):(replaceElemWith tl x y)
                                                                                       | c == x && d ==x = (Element{index = a, value = b, leftIndex = y, rightIndex = y}):(replaceElemWith tl x y)
+
+possibleActions :: Int -> [ListElement] -> Bool
+possibleActions allNodes bdd = (possibleRedundant allNodes bdd) || (possibleSameTree allNodes allNodes allNodes bdd)
+
+possibleRedundant :: Int -> [ListElement] -> Bool
+possibleRedundant n bdd | n <= 0 = False
+                        | (index (getElem n bdd) /= -1) && (redundantElem n bdd) = True
+                        | True = possibleRedundant (n-1) bdd
+
+possibleSameTree :: Int -> Int -> Int -> [ListElement] -> Bool
+possibleSameTree m n maxNodes bdd | (m <= 0) && (n <= 0) = False
+                                  | m == n = possibleSameTree m (n-1) maxNodes bdd
+                                  | (m <= 0) = possibleSameTree (m-1) maxNodes maxNodes bdd
+                                  | (index (getElem m bdd) /= -1) && (index (getElem n bdd) /= -1) && (sameTreeElem m n bdd) = True
+                                  | True = possibleSameTree (m-1) n maxNodes bdd
 
 -- utils
 
@@ -247,7 +262,7 @@ getElem n (hd:tl) | (index hd) == n = hd
 --main + loop
 
 main :: IO ()
-main = do putStrLn "Enter formula:"
+main = do putStr "Enter formula:\n-> "
           formula <- getLine
           let tree = (buildTree ((varlen formula)+1) (parseInput formula))
           let allNodes = 2 ^ ((varlen formula) + 1)
@@ -257,23 +272,24 @@ main = do putStrLn "Enter formula:"
                              gameLoop bdd allNodes
 
 gameLoop :: [ListElement] -> Int -> IO ()
-gameLoop n allNodes = do putStrLn "Current BDD:"
+gameLoop n allNodes = do putStrLn "\nCurrent BDD:"
                          print n
-                         putStrLn "Which transformation to apply?"
+                         putStr "\nWhich transformation to apply?\n-> "
                          input <- getLine
+                         putStr "\n"
                          let words = (split input)
                          if(map toLower (words!!0) == "redundant") then 
-                             if(length words /= 2) then do putStrLn "Wrong usage of `redundant`."
+                             if(length words /= 2) then do putStrLn "Wrong usage of 'redundant'. Try 'redundant 1'."
                                                            gameLoop n allNodes
                              else do case isInteger (words!!1) of
                                        False -> do putStrLn "Invalid argument."
                                                    gameLoop n allNodes
                                        True -> do let argument = (read (words!!1) :: Int)
                                                   if(argument<1 || argument >= (allNodes `div` 2)) 
-                                                      then do putStrLn ("Argument must be between 1 and " ++ (show (allNodes `div` 2-1)))
+                                                      then do putStrLn ("Argument must be between 1 and " ++ (show (allNodes `div` 2-1)) ++ ".")
                                                               gameLoop n allNodes
                                                   else case (isElemInList argument n) of
-                                                         False -> do putStrLn "Element doesn't exist"
+                                                         False -> do putStrLn "Element doesn't exist."
                                                                      gameLoop n allNodes
                                                          True -> case (redundantElem argument n) of
                                                                    False -> do putStrLn "Selected cause is not redundant."
@@ -281,27 +297,35 @@ gameLoop n allNodes = do putStrLn "Current BDD:"
                                                                    True -> do let n2 = (replaceElemWith n argument (leftIndex (getElem argument n)))
                                                                               gameLoop n2 allNodes
 
-                         else if((length words == 3) && (map toLower (words!!0)) == "sametree") 
-                                then do case (isInteger (words!!1) && isInteger (words!!2)) of
+                         else if(map toLower (words!!0) == "sametree") then
+                                  if(length words /= 3) then do putStrLn "Wrong usage of 'sameTree'. Try 'sameTree 1 2'."
+                                                                gameLoop n allNodes 
+                                  else do case (isInteger (words!!1) && isInteger (words!!2)) of
                                             False -> do putStrLn "Invalid arguments."
                                                         gameLoop n allNodes
                                             True -> do let argument1 = (read (words!!1) :: Int)
                                                            argument2 = (read (words!!2) :: Int)
-                                                       if(argument1 < 1 || argument1 >= (allNodes `div` 2) || argument2 < 1 || argument2 >= (allNodes `div` 2))
-                                                           then do putStrLn ("Arguments must be between 1 and " ++ (show (allNodes `div` 2-1)))
+                                                       if(argument1 == argument2)
+                                                           then do putStrLn "Cannot use sameTree rule on the same argument twice."
                                                                    gameLoop n allNodes
-                                                       else case ((isElemInList argument1 n) && (isElemInList argument2 n)) of
-                                                              False -> do putStrLn "Element doesn't exist"
-                                                                          gameLoop n allNodes
-                                                              True -> case (sameTreeElem argument1 argument2 n) of
-                                                                   False -> do putStrLn "Selected causes are not sameTree lol."
+                                                       else if(argument1 < 1 || argument1 >= (allNodes `div` 2) || argument2 < 1 || argument2 >= (allNodes `div` 2))
+                                                                then do putStrLn ("Arguments must be between 1 and " ++ (show (allNodes `div` 2-1)))
+                                                                        gameLoop n allNodes
+                                                            else case ((isElemInList argument1 n) && (isElemInList argument2 n)) of
+                                                                   False -> do putStrLn "Element doesn't exist."
                                                                                gameLoop n allNodes
-                                                                   True -> do let n2 = (replaceElemWith n argument2 argument1)
-                                                                              gameLoop n2 allNodes
+                                                                   True -> case (sameTreeElem argument1 argument2 n) of
+                                                                             False -> do putStrLn "Selected causes are not sameTree lol."
+                                                                                         gameLoop n allNodes
+                                                                             True -> do let n2 = (replaceElemWith n argument2 argument1)
+                                                                                        gameLoop n2 allNodes
 
 
-                         else if ((length words == 1) && (map toLower (words!!0)) == "done") 
-                             then do putStrLn ("Reduced BDD has " ++ (show (length n)) ++ " nodes.")
+                         else if ((length words == 1) && (map toLower (words!!0)) == "done")
+                             then if (possibleActions (allNodes `div` 2 - 1) n) 
+                                    then do putStrLn "BDD still has possible moves."
+                                            gameLoop n allNodes
+                                  else do putStrLn ("Reduced BDD has " ++ (show (length n)) ++ " nodes.\n")
 
                          else do putStrLn "Invalid command. Try one of the following:"
                                  putStrLn "-> redundant x"
