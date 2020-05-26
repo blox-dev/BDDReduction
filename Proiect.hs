@@ -170,8 +170,6 @@ treeToList allNodes (hd:tl) vars varIndex index | index < (allNodes `div` 2) =  
                                                                             Just tail -> Just ("0":tail)
                                                 | True = Just []
 
---ttl = treeToList copacBF 1 1
-
 -- lista -> BDD
 
 data ListElement = Element { index::Int, value::String, leftIndex::Int, rightIndex::Int}
@@ -179,7 +177,9 @@ data ListElement = Element { index::Int, value::String, leftIndex::Int, rightInd
 instance Show ListElement where
     show Element {index = a, value = b, leftIndex = c, rightIndex = d} | c < 0 = (show a) ++ ". " ++ (show b)
                                                                        | True = (show a) ++ ". if " ++ (show b) ++ " then " ++ (show c) ++ " else " ++ (show d)
-    showList list = (intercalate "\n" (map show list) ++)
+
+printList :: [ListElement] -> String
+printList list = unlines (map show list)
 
 listToBDD :: Int -> [String] -> [String] -> Int -> [ListElement]
 listToBDD _ _ [] _ = []
@@ -192,7 +192,6 @@ listToBDD allNodes ttl (hd:tl) index | index < (allNodes `div` 4) = (Element {in
                                                                          "0" -> (Element {index = index, value = hd, leftIndex = (allNodes `div` 2) +1, rightIndex = (allNodes `div` 2)}):(listToBDD allNodes ttl tl (index+1))
                                                                          "1" -> (Element {index = index, value = hd, leftIndex = (allNodes `div` 2) +1, rightIndex = (allNodes `div` 2) +1}):(listToBDD allNodes ttl tl (index+1))
                                      | True = (Element {index = index, value = "0", leftIndex = -1, rightIndex = -2}):(Element {index = index+1, value = "1", leftIndex = -3, rightIndex = -4}):[]
-
 
 --reguli eliminare
 
@@ -259,6 +258,7 @@ getElem :: Int -> [ListElement] -> ListElement
 getElem _ [] = Element{index = -1, value = "", leftIndex = -1, rightIndex = -1}
 getElem n (hd:tl) | (index hd) == n = hd
                   | True = getElem n tl
+
 --main + loop
 
 main :: IO ()
@@ -273,10 +273,10 @@ main = do putStrLn "Enter formula:"
 
 gameLoop :: [ListElement] -> Int -> IO ()
 gameLoop n allNodes = do putStrLn "\nCurrent BDD:"
-                         print n
-                         putStr "\nWhich transformation to apply?\n"
+                         putStrLn (printList n)
+                         putStr "Which transformation to apply?\n"
                          input <- getLine
-                         putStr "\n"
+                         --putStr "\n"
                          let words = (split input)
                          if(map toLower (words!!0) == "redundant") then 
                              if(length words /= 2) then do putStrLn "Wrong usage of 'redundant'. Try 'redundant 1'."
@@ -320,7 +320,6 @@ gameLoop n allNodes = do putStrLn "\nCurrent BDD:"
                                                                              True -> do let n2 = (replaceElemWith n argument2 argument1)
                                                                                         gameLoop n2 allNodes
 
-
                          else if ((length words == 1) && (map toLower (words!!0)) == "done")
                              then if (possibleActions (allNodes `div` 2 - 1) n) 
                                     then do putStrLn "BDD has possible transformations left."
@@ -329,7 +328,7 @@ gameLoop n allNodes = do putStrLn "\nCurrent BDD:"
 
                          else if ((length words == 1) && (map toLower (words!!0)) == "donef")
                              then do putStrLn "Exiting current iteration."
-                                     putStrLn ("Last BDD has " ++ (show (length n)) ++ " nodes.\n")
+                                     putStrLn ("Last BDD had " ++ (show (length n)) ++ " nodes.\n")
 
                          else do putStrLn "Invalid command. Try one of the following:"
                                  putStrLn "-> redundant x"
