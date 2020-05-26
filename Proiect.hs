@@ -133,20 +133,20 @@ buildTree x str
 
 --bfs arbore
 
-traverseBF tree = tbf [tree]
+parseBFS tree = bfs [tree]
 
-tbf :: [BDD] -> [String]
-tbf [] = []
-tbf xs = (map nodeValue xs) ++ tbf (concat (map leftAndRightNodes xs))
+bfs :: [BDD] -> [String]
+bfs [] = []
+bfs xs = (map nodeValue xs) ++ bfs (concat (map childNodes xs))
 
 nodeValue :: BDD -> String
 nodeValue (Node a _ _) = a
 
-leftAndRightNodes :: BDD -> [BDD]
-leftAndRightNodes (Node _ Empty Empty) = []
-leftAndRightNodes (Node _ Empty b)     = [b]
-leftAndRightNodes (Node _ a Empty)     = [a]
-leftAndRightNodes (Node _ a b)       = [a,b]
+childNodes :: BDD -> [BDD]
+childNodes (Node _ Empty Empty) = []
+childNodes (Node _ Empty b)     = [b]
+childNodes (Node _ a Empty)     = [a]
+childNodes (Node _ a b)       = [a,b]
 
 --bfTree -> lista
 
@@ -179,7 +179,7 @@ data ListElement = Element { index::Int, value::String, leftIndex::Int, rightInd
 instance Show ListElement where
     show Element {index = a, value = b, leftIndex = c, rightIndex = d} | c < 0 = (show a) ++ ". " ++ (show b)
                                                                        | True = (show a) ++ ". if " ++ (show b) ++ " then " ++ (show c) ++ " else " ++ (show d)
-    showList list = ((intercalate "\n" (map show list)) ++)
+    showList list = (intercalate "\n" (map show list) ++)
 
 listToBDD :: Int -> [String] -> [String] -> Int -> [ListElement]
 listToBDD _ _ [] _ = []
@@ -262,19 +262,19 @@ getElem n (hd:tl) | (index hd) == n = hd
 --main + loop
 
 main :: IO ()
-main = do putStr "Enter formula:\n-> "
+main = do putStrLn "Enter formula:"
           formula <- getLine
           let tree = (buildTree ((varlen formula)+1) (parseInput formula))
           let allNodes = 2 ^ ((varlen formula) + 1)
-          case treeToList allNodes (traverseBF tree) (variabile formula) 1 1 of
-              Nothing -> do putStrLn "Invalid input"
+          case treeToList allNodes (parseBFS tree) (variabile formula) 1 1 of
+              Nothing -> do putStrLn "Invalid input."
               Just ttl -> do let bdd = listToBDD allNodes ttl ttl 1
                              gameLoop bdd allNodes
 
 gameLoop :: [ListElement] -> Int -> IO ()
 gameLoop n allNodes = do putStrLn "\nCurrent BDD:"
                          print n
-                         putStr "\nWhich transformation to apply?\n-> "
+                         putStr "\nWhich transformation to apply?\n"
                          input <- getLine
                          putStr "\n"
                          let words = (split input)
@@ -292,7 +292,7 @@ gameLoop n allNodes = do putStrLn "\nCurrent BDD:"
                                                          False -> do putStrLn "Element doesn't exist."
                                                                      gameLoop n allNodes
                                                          True -> case (redundantElem argument n) of
-                                                                   False -> do putStrLn "Selected cause is not redundant."
+                                                                   False -> do putStrLn "Selected node is not redundant."
                                                                                gameLoop n allNodes
                                                                    True -> do let n2 = (replaceElemWith n argument (leftIndex (getElem argument n)))
                                                                               gameLoop n2 allNodes
@@ -315,7 +315,7 @@ gameLoop n allNodes = do putStrLn "\nCurrent BDD:"
                                                                    False -> do putStrLn "Element doesn't exist."
                                                                                gameLoop n allNodes
                                                                    True -> case (sameTreeElem argument1 argument2 n) of
-                                                                             False -> do putStrLn "Selected causes are not sameTree lol."
+                                                                             False -> do putStrLn "Selected nodes don't respect the sameTree rule."
                                                                                          gameLoop n allNodes
                                                                              True -> do let n2 = (replaceElemWith n argument2 argument1)
                                                                                         gameLoop n2 allNodes
@@ -323,9 +323,13 @@ gameLoop n allNodes = do putStrLn "\nCurrent BDD:"
 
                          else if ((length words == 1) && (map toLower (words!!0)) == "done")
                              then if (possibleActions (allNodes `div` 2 - 1) n) 
-                                    then do putStrLn "BDD still has possible moves."
+                                    then do putStrLn "BDD has possible transformations left."
                                             gameLoop n allNodes
                                   else do putStrLn ("Reduced BDD has " ++ (show (length n)) ++ " nodes.\n")
+
+                         else if ((length words == 1) && (map toLower (words!!0)) == "donef")
+                             then do putStrLn "Exiting current iteration."
+                                     putStrLn ("Last BDD has " ++ (show (length n)) ++ " nodes.\n")
 
                          else do putStrLn "Invalid command. Try one of the following:"
                                  putStrLn "-> redundant x"
