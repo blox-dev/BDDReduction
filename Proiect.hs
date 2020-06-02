@@ -1,5 +1,4 @@
 import Data.Char;
-import Data.List;
 
 --parsare input 
 
@@ -137,7 +136,7 @@ parseBFS tree = bfs [tree]
 
 bfs :: [BDD] -> [String]
 bfs [] = []
-bfs xs = (map nodeValue xs) ++ bfs (concat (map childNodes xs))
+bfs trees = (map nodeValue trees) ++ bfs (concat (map childNodes trees))
 
 nodeValue :: BDD -> String
 nodeValue (Node a _ _) = a
@@ -146,7 +145,7 @@ childNodes :: BDD -> [BDD]
 childNodes (Node _ Empty Empty) = []
 childNodes (Node _ Empty b)     = [b]
 childNodes (Node _ a Empty)     = [a]
-childNodes (Node _ a b)       = [a,b]
+childNodes (Node _ a b)         = [a,b]
 
 --bfTree -> lista
 
@@ -197,7 +196,7 @@ listToBDD allNodes ttl (hd:tl) index | index < (allNodes `div` 4) = (Element {in
 
 redundantElem :: Int -> [ListElement] -> Bool
 redundantElem _ [] = False
-redundantElem n list = let elem = (getElem n list) in (leftIndex elem) == (rightIndex elem)
+redundantElem n list = let elem = (getElem n list) in (leftIndex elem) == (rightIndex elem) || (sameTreeElem (leftIndex elem) (rightIndex elem) list)
 
 sameTreeElem :: Int -> Int -> [ListElement] -> Bool
 sameTreeElem _ _ [] = False
@@ -276,13 +275,12 @@ gameLoop n allNodes = do putStrLn "\nCurrent BDD:"
                          putStrLn (printList n)
                          putStr "Which transformation to apply?\n"
                          input <- getLine
-                         --putStr "\n"
                          let words = (split input)
                          if(map toLower (words!!0) == "redundant") then 
                              if(length words /= 2) then do putStrLn "Wrong usage of 'redundant'. Try 'redundant 1'."
                                                            gameLoop n allNodes
                              else do case isInteger (words!!1) of
-                                       False -> do putStrLn "Invalid argument."
+                                       False -> do putStrLn "Invalid argument. The first argument must be a number."
                                                    gameLoop n allNodes
                                        True -> do let argument = (read (words!!1) :: Int)
                                                   if(argument<1 || argument >= (allNodes `div` 2)) 
@@ -301,7 +299,7 @@ gameLoop n allNodes = do putStrLn "\nCurrent BDD:"
                                   if(length words /= 3) then do putStrLn "Wrong usage of 'sameTree'. Try 'sameTree 1 2'."
                                                                 gameLoop n allNodes 
                                   else do case (isInteger (words!!1) && isInteger (words!!2)) of
-                                            False -> do putStrLn "Invalid arguments."
+                                            False -> do putStrLn "Invalid arguments. The first and second arguments must be numbers."
                                                         gameLoop n allNodes
                                             True -> do let argument1 = (read (words!!1) :: Int)
                                                            argument2 = (read (words!!2) :: Int)
